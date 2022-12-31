@@ -1,0 +1,6 @@
+gdpc
+numpy
+matplotlib
+scipy
+opencv-python
+tqdm
