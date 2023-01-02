@@ -46,13 +46,18 @@ class RoadNet:
         return blocks
 
     # A* implementation using patches as nodes instead of blocks
-    def findPathAStar(self, start, dest):
+    ## extra_goals refers to other positions that may consitute a final destination (e.g. patches of the goal parcel)
+    def findPathAStar(self, start, dest, extra_goals=[]):
         def getChildren(node, visited, possible_nexts, dest): # Returns nodes accessible from current position
             current_position = node.position
             possible_steps = [(1, 0), (0, 1), (-1, 0), (0, -1)]
             children  = []
             for step in possible_steps:
                 next_position = (current_position[0] + step[0], current_position[1] + step[1])
+
+                # If position belongs to the goal positions list, skip checks and return
+                if next_position in dest:
+                    return [Node(next_position, node)]
 
                 # 1. Check if next_position belongs to the map
                 if next_position not in self.heights.keys():
@@ -84,6 +89,7 @@ class RoadNet:
 
         end_node = Node(dest, None)
         end_node.g = end_node.h = end_node.f = 0
+        goal_nodes = [dest] + extra_goals
 
         visited_nodes = []
         open_list = [start_node]
@@ -102,7 +108,7 @@ class RoadNet:
             visited_nodes.append(current_node.position)
 
             # Reached destination! Retrieve path
-            if current_node.position == end_node.position:
+            if current_node.position in goal_nodes:
                 path = []
                 node = current_node
                 while node != None:
@@ -111,7 +117,7 @@ class RoadNet:
                 return path[::-1]
 
             # Retrieve children
-            children = getChildren(current_node, visited_nodes, [node.position for node in open_list], dest)
+            children = getChildren(current_node, visited_nodes, [node.position for node in open_list], goal_nodes)
             
             # Calculating values for the children
             for child in children:
@@ -194,8 +200,8 @@ class RoadNet:
             self.edges[edge] = 9999
 
     # Finds the path between two blocks, marking the edges found by increasing their speed 
-    def findPath(self, start, dest):
-        path = self.findPathAStar(start, dest)
+    def findPath(self, start, dest, extra_goals=[]):
+        path = self.findPathAStar(start, dest, extra_goals=extra_goals)
 
         # Increases the travel speed in the edges of the path used
         used_edges = []

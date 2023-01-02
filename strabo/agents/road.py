@@ -114,7 +114,7 @@ class RoadDeveloper:
             return
         
         road_coords = [(p.i, p.j) for p in self.world.roads]
-        inaccessible_parcels = [parcel for parcel in self.world.parcels if (parcel.i, parcel.j) not in road_coords]
+        inaccessible_parcels = [parcel for parcel in self.world.parcels if not parcel.connected]
         if (len(inaccessible_parcels)==0): # If no inaccessible parcels, return
             return
 
@@ -124,18 +124,24 @@ class RoadDeveloper:
             start_point_idx = np.random.randint(low=0, high=len(road_coords))
             start_point = road_coords[start_point_idx]
             end_point = (destination_parcel.i, destination_parcel.j)
+            extra_goals = [(p.i, p.j) for p in destination_parcel.patches]
 
-            path = self.world.road_graph.findPath(start_point, end_point)
+            path = self.world.road_graph.findPath(start_point, end_point, extra_goals)
             path = path # Start and destination are not converted into roads
 
-            print(f"Roads: {road_coords}")
-            print(f"Path: {path}")
             self.world.road_graph.setRoad(path)
             self.world.registerRoad(path)
 
+            print(f"Path: {path}")
+            print(f"Roads: {road_coords}")
+
+            # If parcel was reached, set it as connected
+            if (len(path) != 0):
+                destination_parcel.connected = True
+
         # If there is still an inaccessilble parcel, destroy it
         road_coords = [(p.i, p.j) for p in self.world.roads]
-        inaccessible_parcels = [parcel for parcel in inaccessible_parcels if (parcel.i, parcel.j) not in road_coords]
+        inaccessible_parcels = [parcel for parcel in inaccessible_parcels if not parcel.connected]
         for parcel in inaccessible_parcels:
             self.world.destroyParcel(parcel)
             print("destroying")

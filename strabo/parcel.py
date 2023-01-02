@@ -15,10 +15,15 @@ class Parcel:
         self.expand_direction = expand_direction # Used to define to what side the road must be attached to
         
         # Provisory implementation; used to determine agents movement to this parcel
-        self.i = patches[0].i - expand_direction[0]
-        self.j = patches[0].j - expand_direction[1]
+        #self.i = patches[0].i - expand_direction[0]
+        #self.j = patches[0].j - expand_direction[1]
+
+        self.i = patches[0].i
+        self.j = patches[0].j
 
         # Enforcing i and j in map bounds
         # TO DO: improve this later, not cheking upper border
         self.i = max(0, self.i)
         self.j = max(0, self.j)
+
+        self.connected = False

@@ -222,7 +222,7 @@ class World:
 
     # Given a starting patch and a certain devleopment type, select some of its neighbours to make a new parcel
     def createParcel(self, initial_patch, development_type):
-        B = 4 # Size of a block
+        B = 6 # Size of a block
         parcel_patches = [initial_patch] # Patches that will make up the new parcel
         print(f"Patch {(initial_patch.i, initial_patch.j)}, developable: {initial_patch.developable}, Type: {initial_patch.type}, Step: Initial")
 
@@ -258,19 +258,20 @@ class World:
             last_patch = next_patch
 
         # Step 3: widening selected patch strip
-        widening_patches = []
-        wide_direction = expand_direction[::-1] # widening direction is perpendicular to the expand direction
-        for patch in parcel_patches:
-            if ((wide_direction[0] + patch.i < 0) or (wide_direction[0] + patch.i >= self.width) or
-               (wide_direction[1] + patch.j < 0) or (wide_direction[1] + patch.j >= self.height)): # Checking if is in bounds
-               continue
+        for i in range(2):
+            widening_patches = []
+            wide_direction = expand_direction[::-1] # widening direction is perpendicular to the expand direction
+            for patch in parcel_patches:
+                if ((wide_direction[0] + patch.i < 0) or (wide_direction[0] + patch.i >= self.width) or
+                (wide_direction[1] + patch.j < 0) or (wide_direction[1] + patch.j >= self.height)): # Checking if is in bounds
+                    continue
 
-            next_patch = self.patches[wide_direction[0] + patch.i, wide_direction[1] + patch.j]
-            if (next_patch.developable):
-                print(f"Patch {(next_patch.i, next_patch.j)}, developable: {next_patch.developable}, Type: {next_patch.type}, Step: Widening")
-                widening_patches.append(next_patch)
+                next_patch = self.patches[wide_direction[0] + patch.i, wide_direction[1] + patch.j]
+                if (next_patch.developable):
+                    print(f"Patch {(next_patch.i, next_patch.j)}, developable: {next_patch.developable}, Type: {next_patch.type}, Step: Widening")
+                    widening_patches.append(next_patch)
 
-        parcel_patches += widening_patches
+            parcel_patches += widening_patches
 
         # Check if patches dont already belong to an existing parcel
         for patch in parcel_patches:
