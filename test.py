@@ -39,7 +39,20 @@ def commitToWorld(world):
 STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ = INTF.requestPlayerArea(100, 100)  # BUILDAREA
 
 world = World(STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ, patch_size=5)
+r_agent = PropertyDeveloper(world, "Vr")
+c_agent = PropertyDeveloper(world, "Vc")
+i_agent = PropertyDeveloper(world, "Vi")
+road_agent = RoadDeveloper(world, explorers = 20)
 
+buildCity(world, r_agent, c_agent, i_agent, road_agent, steps=100)
+
+world.plotPatches()
+
+#for i in range(50):
+#    r_agent.interact()
+
+
+'''
 road_agent = RoadDeveloper(world, explorers=30)
 r_agent = PropertyDeveloper(world, "Vr")
 c_agent = PropertyDeveloper(world, "Vc")
@@ -52,3 +65,4 @@ world.plotPatches()
 x = input("commit? ")
 if (x == 'y'):  
     commitToWorld(world)
+'''

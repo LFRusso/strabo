@@ -3,18 +3,28 @@ from ..patch import Patch
 from ..parcel import Parcel
 
 class PropertyDeveloper:
-    def __init__(self, world, agent_type, view_radius=5):
+    def __init__(self, world, agent_type, view_radius=5, memory=100):
         self.world = world
         self.view_radius = view_radius
+        self.memory = memory
         self.position = np.random.choice(world.patches.flatten()) # Starts in a random patch of the map
         self.dev_sites = [] # TO DO: initialize dev_sites using starting position
         self.dev_patches = []
+        self.considered_patches = []
         self.last_commit = 5
         self.last_relocate = 5
         self.agent_type = agent_type
 
-    def getRegion(self):
-        i, j = [self.position.i, self.position.j] 
+        # Weights for each type of developer
+        ##        eh  ev  epv  dw   dr  di  dpk dpr dm   x
+        self.W = {
+            "r": [.1, .2,  0,  .1,  .4,  0,  0,  .2,  0,  0],
+            "c": [ 0, .2,  0, .15, .15,  0,  0,  0, .4,  0],
+            "i": [ 0, .5,  0,  .3,   0, .1,  0, .1,  0,  0],
+            "p": [ 0,  0, .2,  .1,  .1,  0, .4,  0,  0, .2]
+        }
+
+    def getRegion(self, i, j):
         region = self.world.patches[max(0,i-self.view_radius):i+self.view_radius+1,
                          max(0, j-self.view_radius):j+self.view_radius+1].flatten()
         region = [p for p in region if p.developable] # Selecting only developable patches (excludes water, etc)
@@ -29,12 +39,12 @@ class PropertyDeveloper:
     
 
         return region_patches, region_parcels
-        
 
 
     # Searches for suitable locations in its surroundings
     def prospect(self, dev_sites):
-        region_patches, region_parcels = self.getRegion()
+        i, j = [self.position.i, self.position.j] 
+        region_patches, region_parcels = self.getRegion(i, j)
         patch_values, parcel_values = [self.world.patch_values, self.world.parcel_values]
         values = patch_values | parcel_values
         combined_region = region_patches + region_parcels
@@ -82,11 +92,11 @@ class PropertyDeveloper:
 
     def build(self, site):
         if (isinstance(site, Patch)): # Building in patch is direct
+            self.considered_patches.append(site)
             new_parcel = self.world.createParcel(site, development_type=self.agent_type) # TO DO: expand to create parcels of multiple patches
             if (new_parcel == None): 
                 return
             self.last_commit = 5 # Resets last commit counter
-            self.world.updateWorld()
             
             '''
             # Removing current patch from the developable patches list
@@ -107,19 +117,71 @@ class PropertyDeveloper:
                 self.world.addBlockedPatch(patch)
 
 
-        elif (isinstance(site, Parcel)): # Building in patcel requires check if it is worth replacing old parcel
-             patch_values, parcel_values = self.world.getValues()
-             current_value = parcel_values[site][site.development_type]
-             new_value = parcel_values[site][self.agent_type]
+        elif (isinstance(site, Parcel)): # TO DO: Building in patcel requires check if it is worth replacing old parcel
+             return
 
-             if (new_value / current_value > 1.2): # 20% at least increase in value
-                site.development_type = self.agent_type
-                self.last_commit = 5 # Resets last commit counter
-                self.world.updateWorld()
+    def getScore(self, patch):
+        i, j = [patch.i, patch.j] 
+        region_patches, region_parcels = self.getRegion(i, j)
+
+        eh = patch.get_eh(self.world.patches)
+        ev, epv = patch.get_ev(self.world.patches)
+        dpr = patch.get_dpr()
+        dw = patch.get_dw()
+        dr = patch.get_dr(region_patches, region_parcels)
+        dc = patch.get_dc(region_patches, region_parcels)
+        di = patch.get_di(region_patches, region_parcels)
+        dm = patch.get_dm(self.world.parcels)
+        dpk = patch.get_dm(self.world.parcels)
+
+        A = [eh, ev, epv, dw, dr, di, dpk, dpr, dm, 0]
+        W = [self.W['r'], self.W['i'], self.W['i'], self.W['p']]
+
+        Vr, Vc, Vi, _= np.dot(W, A) 
+        Vp = (1/Vr + 1/Vc + 1/Vi) * self.W['p'][-1] # Anti-worth
+
+        return {'Vr': Vr, 'Vc': Vc, 'Vi': Vi, 'Vp': Vp}
+
+    def prospectNew(self):
+        i, j = [self.position.i, self.position.j] 
+        region_patches, region_parcels = self.getRegion(i, j)
+
+        avaliable_patches = self.dev_patches + region_patches # Memory + new
+        avaliable_patches = [p for p in avaliable_patches if p not in self.considered_patches and self.world.isAccessible(p)]
+        
+        # No more avaliable patches, relocate globaly
+        while len(avaliable_patches) == 0:
+            self.position = np.random.choice(self.world.patches.flatten())
+            i, j = [self.position.i, self.position.j] 
+            region_patches, region_parcels = self.getRegion(i, j)
+            avaliable_patches = [p for p in region_patches if p not in self.considered_patches and self.world.isAccessible(p)]
+
+        scores = [self.getScore(patch)[self.agent_type] for patch in avaliable_patches]
+
+        idx_best = np.argmax(scores)
+        best_patch = avaliable_patches[idx_best]
+
+        #print(f"Selected patch: ({best_patch.i}, {best_patch.j}), undeveloped={best_patch.undeveloped}")
+
+        if (self.position == best_patch):
+            self.build(self.position)
+            print("Building")
+        else:
+            self.position = best_patch
+            print("Relocating")
+
+        return avaliable_patches
+
 
     # Interacts with the environment
     def interact(self):
-        self.dev_sites = self.prospect(self.dev_sites)
+        self.dev_patches = self.prospectNew()
+        self.dev_patches = self.dev_patches[:min(len(self.dev_patches), self.memory)]
+
+        # Removing already developed patched from the list
+        self.dev_patches = [p for p in self.dev_patches if p.undeveloped]
+
+        '''
         self.build(self.position) # My version
 
         #for site in self.dev_sites: # Paper implementation
@@ -128,5 +190,6 @@ class PropertyDeveloper:
         # Decreases counters
         self.last_commit -= 1
         self.last_relocate -= 1
+        '''
 
-        print(f"Current position: {self.position.i}, {self.position.j}")
+        #print(f"Current position: {self.position.i}, {self.position.j}")

@@ -19,24 +19,25 @@ class World:
         self.ENDZ = ENDZ 
         self.patch_size = patch_size
         self.ew = 63 # Default ocean elevation in Minecraft
+        self.parcels = []
+        self.roads = []
     
         self.WORLDSLICE = WL.WorldSlice(STARTX, STARTZ, ENDX + 1, ENDZ + 1)  
         self.HEIGHTMAP = self.WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES']
 
         self.width, self.height = len(self.HEIGHTMAP) // patch_size, len(self.HEIGHTMAP[0]) // self.patch_size 
         self.patches = self.getPatches()
-        self.parcels = []
 
         # Weights for each type of developer
         self.W = {
-            "r": [.3, 0, 0, 0, .3, .4, 0, 0, 0, 0, 0, 0],
-            "c": [0, .2, 0, 0, .15, .15, 0, 0, 0, .4, .1, 0],
-            "i": [0, .5, 0, 0, .3, 0, .1, 0, .1, 0, 0, 0],
-            "p": [0, 0, .1, .1, .1, .1, 0, .4, 0, 0, 0, .2]
+            "r": [.1, .2, 0, .3, .4, 0, 0, 0, 0, 0, 0],
+            "c": [0, .2, 0, .15, .15, 0, 0, 0, .4, .1, 0],
+            "i": [0, .5, 0, .3, 0, .1, 0, .1, 0, 0, 0],
+            "p": [0, 0, .2, .1, .1, 0, .4, 0, 0, 0, .2]
         }
 
         self.undeveloped = True
-        self.patch_values, self.parcel_values = self.getValues() # Since this funcion is slow, store those values here (they have to be updated manually after avery development)
+        #self.patch_values, self.parcel_values = self.getValues() # Since this funcion is slow, store those values here (they have to be updated manually after avery development)
 
         ## Road network
         self.road_graph = RoadNet(self.patches)
@@ -45,6 +46,35 @@ class World:
         for patch in self.patches.flatten():
             if patch.type in ["water", "lava"]:
                 self.road_graph.setBlocked((patch.i, patch.j))
+
+    # Checks if it is possible to create a path from the road network to this patch
+    def isAccessible(self, patch):
+        # If there is not a road network yet, check if is accessible through other parcel
+        if(len(self.roads) == 0  and len(self.parcels) == 0):
+            return True 
+
+        if (len(self.roads)!=0):
+            # Selecting a random network patch
+            start = np.random.choice(self.roads)
+
+            start_point = (start.i, start.j)
+            end_point = (patch.i, patch.j)
+
+            path = self.road_graph.findPath(start_point, end_point)
+            if (len(path)==0):
+                return False
+        else:
+            start = np.random.choice(self.parcels)
+
+            start_point = (start.i, start.j)
+            end_point = (patch.i, patch.j)
+
+            path = self.road_graph.findPath(start_point, end_point)
+            if (len(path)==0):
+                return False
+
+        return True
+        
 
     # Reads a list of blocks and converts intersected patches into roads
     def registerRoadBlocks(self, blocks):
@@ -62,14 +92,13 @@ class World:
     def registerRoad(self, path):
         for p in path:
             self.patches[p].type = 'road'
+            self.roads.append(self.patches[p])
             self.developable = False
 
             # Updating dp for all developed patches
             for parcel in self.parcels:
                 for patch in parcel.patches:
                     patch.dp = min(patch.dp, self.patch_size*sum([abs(u - v) for u, v in zip((patch.i, patch.j), p)]) )
-                    patch.update_dpr()
-                    patch.update_dm()
 
     # Sets all blocks of a given patch as blocked in the road network 
     def addBlockedPatch(self, patch):
@@ -99,22 +128,6 @@ class World:
                 patch = Patch(i, j, patch_heights, self.patch_size, coords, self.WORLDSLICE)
                 patches[i].append(patch)
         patches = np.array(patches)
-
-        # Setting all patches values
-        for patch in patches.flatten():
-            patch.update_dwater(patches)
-            patch.update_eh(patches)
-            patch.update_ev(patches)
-            patch.update_epv(patches)
-            patch.update_efp(patches, self.ew)
-            patch.update_dpr()
-            patch.update_dw()
-            patch.update_dr(patches)
-            patch.update_dc(patches)
-            patch.update_di(patches)
-            patch.update_cc(patches)
-            patch.update_dm()
-
         return patches
 
     # Utility function to normalize the individual parameters before calculating final value 
@@ -140,7 +153,6 @@ class World:
             eh_list = [p.eh for p in flatten_patches]
             ev_list = [p.ev for p in flatten_patches]
             epv_list = [p.epv for p in flatten_patches]
-            efp_list = [p.efp for p in flatten_patches]
             dw_list = [p.dw for p in flatten_patches]
             dr_list = [p.dr for p in flatten_patches]
             di_list = [p.di for p in flatten_patches]
@@ -152,7 +164,6 @@ class World:
             eh = self.normalizeParameter(patch.eh, eh_list)      
             ev = self.normalizeParameter(patch.ev, ev_list)        
             epv = self.normalizeParameter(patch.epv, epv_list)        
-            efp = self.normalizeParameter(patch.efp, efp_list)        
             dw = self.normalizeParameter(patch.dw, dw_list)        
             dr = self.normalizeParameter(patch.dr, dr_list)   
             di = self.normalizeParameter(patch.di, di_list)     
@@ -164,7 +175,7 @@ class World:
             ## Residential, Comercial and Industrial scores
             ## Park score can only be calculated partially due to the need of calculating the anti-worth
 
-            A = [eh, ev, epv, efp, dw, dr, di, dpk, dpr, dm, dcom, 0]
+            A = [eh, ev, epv, dw, dr, di, dpk, dpr, dm, dcom, 0]
             W = [self.W['r'], self.W['i'], self.W['i'], self.W['p']]
 
             Vr, Vc, Vi, Vp_partial = np.dot(W, A) # TO DO: add constraints of eq. and table III
@@ -267,6 +278,7 @@ class World:
         for patch in parcel_patches:
             patch.parcel = new_parcel
             patch.undeveloped = False
+            print(f"Setting ({patch.i}, {patch.j}) developed")
         self.parcels.append(new_parcel)
 
         return new_parcel

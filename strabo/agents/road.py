@@ -19,7 +19,7 @@ class RoadDeveloper:
             # Selecting destination parcel
             destination = np.random.choice([p for p in self.world.parcels])
         except: # Only proceed if those properties have already been developed
-            return
+            return []
 
         start_point = (start.i, start.j)
         end_point = (destination.i, destination.j)
@@ -31,7 +31,7 @@ class RoadDeveloper:
     # Runs an simulation tick with the world
     def interact(self):
         for i in range(self.explorers):
-            self.runExplore()
+            path = self.runExplore()
 
         # Implementation 1: build through all pairs
         ## Problema: tempo de execução
@@ -84,13 +84,18 @@ class RoadDeveloper:
         '''
 
         # Implementation 4: Make road reach all parcels away from the network
+        '''
         inaccessible_parcels  = [parcel for parcel in self.world.parcels if min([patch.dp for patch in parcel.patches]) > self.world.patch_size]
         
         try: # Trying to select an accessible parcel
             destination_parcel = np.random.choice([p for p in self.world.parcels if p not in inaccessible_parcels])
         except: # If impossible (all parcels are not accessible), select ramdom
-            destination_parcel = np.random.choice([p for p in self.world.parcels])
+            try:
+                destination_parcel = np.random.choice([p for p in self.world.parcels])
+            except:
+                return
 
+        #print("construido")
         for start_parcel in inaccessible_parcels:
             start_point = (start_parcel.i, start_parcel.j)
             end_point = (destination_parcel.i, destination_parcel.j)
@@ -101,4 +106,48 @@ class RoadDeveloper:
             self.world.registerRoad(path)
             #self.world.plotPatches()
         # Cleaning alterations in the map due to previous explorations
+        self.world.road_graph.clearEdges()
+        '''
+
+        # Implementation 5: go to all inaccessible parcels, starting from random points in the network
+        if (len(self.world.parcels) < 2):
+            return
+        
+        road_coords = [(p.i, p.j) for p in self.world.roads]
+        inaccessible_parcels = [parcel for parcel in self.world.parcels if (parcel.i, parcel.j) not in road_coords]
+        if (len(inaccessible_parcels)==0): # If no inaccessible parcels, return
+            return
+
+        if (len(self.world.roads) == 0): # If no roads created yet select start randomly
+            start_parcel = np.random.choice(self.world.parcels) 
+            destination_parcel = np.random.choice(inaccessible_parcels) # TO DO: correct this, possible to not accessible parcel
+
+            start_point = (start_parcel.i, start_parcel.j)
+            end_point = (destination_parcel.i, destination_parcel.j)
+
+            path = self.world.road_graph.findPath(start_point, end_point)
+            path = path # Start and destination are not converted into roads
+            self.world.road_graph.setRoad(path)
+            self.world.registerRoad(path)
+
+
+        # Build all the reast connecting to the network
+        for destination_parcel in inaccessible_parcels:
+            start_parcel = np.random.choice(self.world.roads)
+
+            start_point = (start_parcel.i, start_parcel.j)
+            end_point = (destination_parcel.i, destination_parcel.j)
+
+            path = self.world.road_graph.findPath(start_point, end_point)
+            path = path # Start and destination are not converted into roads
+            self.world.road_graph.setRoad(path)
+            self.world.registerRoad(path)
+
+        # If there is still an inaccessilble parcel, destroy it
+        road_coords = [(p.i, p.j) for p in self.world.roads]
+        inaccessible_parcels = [parcel for parcel in inaccessible_parcels if (parcel.i, parcel.j) not in road_coords]
+        for parcel in inaccessible_parcels:
+            self.world.destroyParcel(parcel)
+            print("destroying")
+
         self.world.road_graph.clearEdges()
