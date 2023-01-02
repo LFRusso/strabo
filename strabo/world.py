@@ -92,8 +92,9 @@ class World:
     def registerRoad(self, path):
         for p in path:
             self.patches[p].type = 'road'
-            self.roads.append(self.patches[p])
-            self.developable = False
+            if self.patches[p] not in self.roads:
+                self.roads.append(self.patches[p])
+            self.patches[p].developable = False
 
             # Updating dp for all developed patches
             for parcel in self.parcels:
@@ -223,6 +224,8 @@ class World:
     def createParcel(self, initial_patch, development_type):
         B = 4 # Size of a block
         parcel_patches = [initial_patch] # Patches that will make up the new parcel
+        print(f"Patch {(initial_patch.i, initial_patch.j)}, developable: {initial_patch.developable}, Type: {initial_patch.type}, Step: Initial")
+
         
         # Step 1: chooding a direction to expand away form the network
         possible_directions = [(0,1), (1, 0), (-1, 0), (0, -1)]
@@ -250,11 +253,11 @@ class World:
             next_patch = self.patches[expand_direction[0] + last_patch.i, expand_direction[1] + last_patch.j]
             if (not next_patch.developable):
                 break
+            print(f"Patch {(next_patch.i, next_patch.j)}, developable: {next_patch.developable}, Type: {next_patch.type}, Step: Expanding")
             parcel_patches.append(next_patch)
             last_patch = next_patch
 
         # Step 3: widening selected patch strip
-        
         widening_patches = []
         wide_direction = expand_direction[::-1] # widening direction is perpendicular to the expand direction
         for patch in parcel_patches:
@@ -264,6 +267,7 @@ class World:
 
             next_patch = self.patches[wide_direction[0] + patch.i, wide_direction[1] + patch.j]
             if (next_patch.developable):
+                print(f"Patch {(next_patch.i, next_patch.j)}, developable: {next_patch.developable}, Type: {next_patch.type}, Step: Widening")
                 widening_patches.append(next_patch)
 
         parcel_patches += widening_patches
@@ -287,6 +291,8 @@ class World:
         for patch in parcel.patches:
             patch.parcel = None
             patch.undeveloped = True
+            patch.type = 'land'
+            self.road_graph.setUnblocked((patch.i, patch.j))
         self.parcels.remove(parcel)
         del parcel
 

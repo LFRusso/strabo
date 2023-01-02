@@ -23,8 +23,13 @@ class RoadNet:
         self.edges[(node2, node1)] = 0
         # TO DO: add check nodes belong to the region
     
-    def setBlocked(self, patches):
-        self.blocked.append(patches)
+    def setBlocked(self, patch):
+        if patch not in self.blocked:
+            self.blocked.append(patch)
+
+    def setUnblocked(self, patch):
+        if patch in self.blocked:
+            self.blocked.remove(patch)
 
     def getBlocks(self):
         blocks = np.empty((self.size, self.size), dtype=object)
@@ -48,10 +53,6 @@ class RoadNet:
             children  = []
             for step in possible_steps:
                 next_position = (current_position[0] + step[0], current_position[1] + step[1])
-
-                # Start by checking if this is the last position, since it ignores restrictions
-                if (next_position == dest):
-                    return [Node(next_position, node)]
 
                 # 1. Check if next_position belongs to the map
                 if next_position not in self.heights.keys():

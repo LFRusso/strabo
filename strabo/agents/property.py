@@ -25,8 +25,8 @@ class PropertyDeveloper:
         }
 
     def getRegion(self, i, j):
-        region = self.world.patches[max(0,i-self.view_radius):i+self.view_radius+1,
-                         max(0, j-self.view_radius):j+self.view_radius+1].flatten()
+        region = self.world.patches[max(1,i-self.view_radius):i+self.view_radius, # Adding padding of 1 patch
+                         max(1, j-self.view_radius):j+self.view_radius].flatten()
         region = [p for p in region if p.developable] # Selecting only developable patches (excludes water, etc)
 
         region_parcels = []
@@ -179,7 +179,7 @@ class PropertyDeveloper:
         self.dev_patches = self.dev_patches[:min(len(self.dev_patches), self.memory)]
 
         # Removing already developed patched from the list
-        self.dev_patches = [p for p in self.dev_patches if p.undeveloped]
+        self.dev_patches = [p for p in self.dev_patches if p.developable]
 
         '''
         self.build(self.position) # My version

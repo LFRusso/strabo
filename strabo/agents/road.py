@@ -118,28 +118,18 @@ class RoadDeveloper:
         if (len(inaccessible_parcels)==0): # If no inaccessible parcels, return
             return
 
-        if (len(self.world.roads) == 0): # If no roads created yet select start randomly
-            start_parcel = np.random.choice(self.world.parcels) 
-            destination_parcel = np.random.choice(inaccessible_parcels) # TO DO: correct this, possible to not accessible parcel
-
-            start_point = (start_parcel.i, start_parcel.j)
-            end_point = (destination_parcel.i, destination_parcel.j)
-
-            path = self.world.road_graph.findPath(start_point, end_point)
-            path = path # Start and destination are not converted into roads
-            self.world.road_graph.setRoad(path)
-            self.world.registerRoad(path)
-
-
+        print("blocked",self.world.road_graph.blocked)
         # Build all the reast connecting to the network
         for destination_parcel in inaccessible_parcels:
-            start_parcel = np.random.choice(self.world.roads)
-
-            start_point = (start_parcel.i, start_parcel.j)
+            start_point_idx = np.random.randint(low=0, high=len(road_coords))
+            start_point = road_coords[start_point_idx]
             end_point = (destination_parcel.i, destination_parcel.j)
 
             path = self.world.road_graph.findPath(start_point, end_point)
             path = path # Start and destination are not converted into roads
+
+            print(f"Roads: {road_coords}")
+            print(f"Path: {path}")
             self.world.road_graph.setRoad(path)
             self.world.registerRoad(path)
 
