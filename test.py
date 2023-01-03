@@ -28,7 +28,7 @@ def buildCity(world, *property_agents, road_agent, steps):
     world.plotPatches()
     for i in range(steps):
         for agent in property_agents:
-            agent.interact()
+            agent.buildNew()
             #world.plotPatches()
 
         road_agent.interact()
@@ -47,7 +47,7 @@ def commitToWorld(world):
                 INTF.placeBlock(i, j-1, k, block)
 
         if (patch.type == "road"):
-            block = 'cobblestone'
+            block = 'obsidian'
             x, z = patch.xz_coordinates.T
             y = patch.region_heights.flatten()
             for i, j, k in zip(x.flatten(), y.flatten(), z.flatten()):
@@ -56,15 +56,15 @@ def commitToWorld(world):
 
 
 # Seleciona região ao redor do jogador
-STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ = INTF.requestPlayerArea(100, 100)  # BUILDAREA
+STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ = INTF.requestPlayerArea(200, 200)  # BUILDAREA
 
 world = World(STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ, patch_size=5)
 r_agent = PropertyDeveloper(world, "Vr")
 c_agent = PropertyDeveloper(world, "Vc")
 i_agent = PropertyDeveloper(world, "Vi")
-road_agent = RoadDeveloper(world, explorers = 20)
+road_agent = RoadDeveloper(world, explorers = 100)
 
-buildCity(world, r_agent, c_agent, i_agent, road_agent=road_agent, steps=50)
+buildCity(world, r_agent, c_agent, i_agent, road_agent=road_agent, steps=10)
 
 world.plotPatches()
 

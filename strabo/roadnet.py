@@ -185,8 +185,8 @@ class RoadNet:
             if (edge not in self.edges.keys()):
                 self.addEdge(*edge)
             
-            self.edges[edge] = 9999 # Increase travel speed to 5 m/s
-            self.edges[edge[::-1]] = 9999 # Same for the other direction (undirected graph)
+            self.edges[edge] = 6 # Increase travel speed to 5 m/s
+            self.edges[edge[::-1]] = 6 # Same for the other direction (undirected graph)
 
             self.roads.append(edge)
             self.roads.append(edge[::-1])
@@ -197,7 +197,7 @@ class RoadNet:
         self.edges = {}
 
         for edge in self.roads:
-            self.edges[edge] = 9999
+            self.edges[edge] = 6
 
     # Finds the path between two blocks, marking the edges found by increasing their speed 
     def findPath(self, start, dest, extra_goals=[]):

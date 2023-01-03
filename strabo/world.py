@@ -222,7 +222,7 @@ class World:
 
     # Given a starting patch and a certain devleopment type, select some of its neighbours to make a new parcel
     def createParcel(self, initial_patch, development_type):
-        B = 6 # Size of a block
+        B = 8 # Size of a block
         parcel_patches = [initial_patch] # Patches that will make up the new parcel
         print(f"Patch {(initial_patch.i, initial_patch.j)}, developable: {initial_patch.developable}, Type: {initial_patch.type}, Step: Initial")
 
@@ -256,9 +256,11 @@ class World:
             print(f"Patch {(next_patch.i, next_patch.j)}, developable: {next_patch.developable}, Type: {next_patch.type}, Step: Expanding")
             parcel_patches.append(next_patch)
             last_patch = next_patch
+        if (i < 3): # Unable to expand at least 3 patches
+            return
 
         # Step 3: widening selected patch strip
-        for i in range(2):
+        for i in range(3):
             widening_patches = []
             wide_direction = expand_direction[::-1] # widening direction is perpendicular to the expand direction
             for patch in parcel_patches:

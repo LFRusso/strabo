@@ -11,8 +11,6 @@ class PropertyDeveloper:
         self.dev_sites = [] # TO DO: initialize dev_sites using starting position
         self.dev_patches = []
         self.considered_patches = []
-        self.last_commit = 5
-        self.last_relocate = 5
         self.agent_type = agent_type
 
         # Weights for each type of developer
@@ -90,35 +88,20 @@ class PropertyDeveloper:
         dev_sites = list(dev_patches) + dev_parcels        
         return dev_sites
 
+    # Returns True if as build successfully and False otherwise
     def build(self, site):
         if (isinstance(site, Patch)): # Building in patch is direct
             self.considered_patches.append(site)
             new_parcel = self.world.createParcel(site, development_type=self.agent_type) # TO DO: expand to create parcels of multiple patches
             if (new_parcel == None): 
-                return
-            self.last_commit = 5 # Resets last commit counter
+                return False
             
-            '''
-            # Removing current patch from the developable patches list
-            if (site in self.dev_sites):
-                self.dev_sites.remove(site)
-            if (site in self.dev_patches):
-                self.dev_patches.remove(site)
-            # Preventing roads to be built on top of this patch
-            self.world.addBlockedPatch(site)
-            '''
-            # Removing new parcel's patches from the list of free spaces
             for patch in new_parcel.patches:
-                if (patch in self.dev_sites):
-                    self.dev_sites.remove(patch)
-                if (patch in self.dev_patches):
-                    self.dev_patches.remove(patch)
                 # Preventing roads to be built on top of this patch
                 self.world.addBlockedPatch(patch)
 
-
-        elif (isinstance(site, Parcel)): # TO DO: Building in patcel requires check if it is worth replacing old parcel
-             return
+            return True
+        return False
 
     def getScore(self, patch):
         i, j = [patch.i, patch.j] 
@@ -171,6 +154,21 @@ class PropertyDeveloper:
             print("Relocating")
 
         return avaliable_patches
+
+    def buildNew(self):
+        avaliable_patches = [p for p in self.world.patches.flatten() if p.developable and p.undeveloped and p not in self.considered_patches]
+
+        # Scoring all patches and sorting them by score
+        scores = [self.getScore(p)[self.agent_type] for p in avaliable_patches]
+        sorted_idx = np.argsort(scores)[::-1]
+        sorted_patches = np.array(avaliable_patches)[sorted_idx]
+
+        # Triyng to build in the best score avaliable
+        built = False
+        for patch in sorted_patches:
+            # Checks if a patch is accessible
+            if(self.build(patch)):
+                break
 
 
     # Interacts with the environment
